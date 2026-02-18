@@ -7,3 +7,36 @@
  * 
  * Assigned to: ABENES
  */
+
+import java.io.*;
+import java.net.*;
+
+public class SocketManager {
+    private DatagramSocket socket;
+    private int timeout;
+
+    public SocketManager(int port, int timeout) throws SocketException {
+        this.socket = new DatagramSocket(port);
+        this.timeout = timeout;
+        this.socket.setSoTimeout(timeout); 
+    }
+
+    public void sendPacket(Packet packet, InetAddress address, int port) throws IOException {
+        byte[] data = packet.toByteArray(); 
+        DatagramPacket datagram = new DatagramPacket(data, data.length, address, port);
+        socket.send(datagram);
+    }
+
+    public Packet receivePacket(DatagramPacket incoming) throws IOException {
+        try {
+            socket.receive(incoming);
+            return Packet.fromByteArray(incoming.getData());
+        } catch (SocketTimeoutException e) {
+            return null; 
+        }
+    }
+
+    public void close() {
+        socket.close();
+    }
+}

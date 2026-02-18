@@ -1,5 +1,5 @@
-import java.util.Arrays;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 /*
  * [cite_start]TODO: Define the Packet structure according to Project Specs [cite: 32, 33]
  * - [cite_start]Implement fields for Message Type (SYN, DATA, ACK, FIN, ERROR) [cite: 34]
