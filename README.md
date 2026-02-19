@@ -3,7 +3,7 @@ This project is designed to extend the discussion of the UDP-based application p
 
 <h3>Authors</h3>
 <p1>Abenes, Mark Gabriel L</p1><br>
-<p1>Ramos, Marga</p1>
+<p1>Ramos, Margaret Patrice</p1>
 
 <h3>Languages used</h3>
 <img src="https://upload.wikimedia.org/wikipedia/en/thumb/3/30/Java_programming_language_logo.svg/960px-Java_programming_language_logo.svg.png" width=50 height=100>
