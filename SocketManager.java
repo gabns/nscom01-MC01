@@ -13,6 +13,7 @@ import java.net.*;
 
 public class SocketManager {
     private DatagramSocket socket;
+    
     private int timeout;
 
     public SocketManager(int port, int timeout) throws SocketException {
