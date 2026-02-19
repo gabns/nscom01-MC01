@@ -2,7 +2,7 @@
 This project is designed to extend the discussion of the UDP-based application protocols by requiring students to design and implement reliability, ordering, and session management at the application layer.
 
 <h3>Authors</h3>
-<p1>Abenes, Mark Gabriel L</p1>
+<p1>Abenes, Mark Gabriel L</p1><br>
 <p1>Ramos, Marga</p1>
 
 <h3>Languages used</h3>
