@@ -10,7 +10,8 @@
 
 import java.io.*;
 import java.net.*;
-import java.util.Arrays;   
+import java.util.Arrays;
+import java.util.Scanner;
 
 public class ReliableClient {
     private SocketManager socketManager;
@@ -53,8 +54,27 @@ public class ReliableClient {
 
     // --- Upload Logic ---
     public void uploadFile(String filename) {
+
         // [cite: 48, 53] Implement Upload sending logic
-        long currentSeq = 0; // Initial sequence number
+        File file = new File(filename);
+
+        // Create file from user input if it doesn't exist
+        if (!file.exists()) {
+            System.out.println("File '" + filename + "' not found. Creating a new one...");
+            System.out.print("Enter content for the new file: ");
+            Scanner sc = new Scanner(System.in);
+            String content = sc.nextLine();
+            
+            try (PrintWriter writer = new PrintWriter(file)) {
+                writer.print(content);
+                System.out.println("File created successfully.");
+            } catch (IOException e) {
+                System.err.println("Failed to create file: " + e.getMessage());
+                return;
+            }
+        }
+
+        long currentSeq = 0;
         
         try (FileInputStream fis = new FileInputStream(filename)) {
             if (!establishSession("UPLOAD", filename, currentSeq)) {
@@ -99,10 +119,9 @@ public class ReliableClient {
             closeSession(currentSeq);
             System.out.println("Upload complete!");
 
-        } catch (FileNotFoundException e) {
-            System.err.println("File not found locally: " + filename);
         } catch (IOException e) {
-            System.err.println("File read error: " + e.getMessage());
+            System.err.println("Error during upload: " + e.getMessage());
+
         }
     }
 
