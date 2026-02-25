@@ -10,11 +10,13 @@
 
 import java.io.*;
 import java.net.*;
+import java.util.Arrays;
 
 public class ReliableServer {
     private SocketManager socketManager;
     private boolean running = true;
     private long expectedSequenceNumber = 0;
+    private FileOutputStream fileOutputStream = null;
 
     public ReliableServer(int port) throws SocketException {
         this.socketManager = new SocketManager(port, 2000); 
@@ -59,26 +61,100 @@ public class ReliableServer {
         System.out.println("Received SYN. Initializing session...");
         this.expectedSequenceNumber = packet.getSequenceNumber(); 
         
-        Packet synAck = new Packet(Packet.SYN_ACK, expectedSequenceNumber, null);
-        socketManager.sendPacket(synAck, addr, port);
+        String payload = new String(packet.getPayload()).trim();
+        String[] parts = payload.split(":", 2);
+        String command = parts.length > 0 ? parts[0] : "";
+        String filename = parts.length > 1 ? parts[1] : "default.bin";
+
+        if (command.equals("UPLOAD")) {
+            this.fileOutputStream = new FileOutputStream("server_" + filename);
+            Packet synAck = new Packet(Packet.SYN_ACK, expectedSequenceNumber, null);
+            socketManager.sendPacket(synAck, addr, port);
+        } else if (command.equals("DOWNLOAD")) {
+            File file = new File(filename);
+            if (!file.exists()) {
+                Packet error = new Packet(Packet.ERROR, 0, "File Not Found".getBytes());
+                socketManager.sendPacket(error, addr, port);
+                return;
+            }
+            Packet synAck = new Packet(Packet.SYN_ACK, expectedSequenceNumber, null);
+            socketManager.sendPacket(synAck, addr, port);
+            
+            // Start sending the file data for download requests
+            sendFile(file, addr, port);
+        } else {
+            Packet synAck = new Packet(Packet.SYN_ACK, expectedSequenceNumber, null);
+            socketManager.sendPacket(synAck, addr, port);
+        }
     }
 
     private void handleDataTransfer(Packet packet, InetAddress addr, int port) throws IOException {
         if (packet.getSequenceNumber() == expectedSequenceNumber) {
             System.out.println("Received expected DATA: " + packet.getSequenceNumber());
+
+            // Write the payload to our stored file correctly
+            if (fileOutputStream != null) {
+                fileOutputStream.write(packet.getPayload());
+            }
             
             Packet ack = new Packet(Packet.ACK, expectedSequenceNumber, null);
             socketManager.sendPacket(ack, addr, port);
             expectedSequenceNumber++;
         } else {
             System.out.println("Sequence mismatch. Expected: " + expectedSequenceNumber);
+            Packet ack = new Packet(Packet.ACK, expectedSequenceNumber, null);
+            socketManager.sendPacket(ack, addr, port);
         }
     }
 
     private void handleTermination(Packet packet, InetAddress addr, int port) throws IOException {
         System.out.println("Received FIN. Closing session...");
+        if (fileOutputStream != null) {
+            fileOutputStream.close();
+            fileOutputStream = null;
+        }
         Packet finAck = new Packet(Packet.ACK, packet.getSequenceNumber(), null);
         socketManager.sendPacket(finAck, addr, port);
+
+    }
+
+    private void sendFile(File file, InetAddress addr, int port) {
+        long currentSeq = expectedSequenceNumber; 
+        try (FileInputStream fis = new FileInputStream(file)) {
+            byte[] buffer = new byte[Packet.MAX_PAYLOAD_SIZE];
+            int bytesRead;
+
+            while ((bytesRead = fis.read(buffer)) != -1) {
+                byte[] payload = Arrays.copyOf(buffer, bytesRead);
+                Packet dataPacket = new Packet(Packet.DATA, currentSeq, payload);
+                
+                boolean ackReceived = false;
+                for (int attempt = 0; attempt < 5; attempt++) {
+                    socketManager.sendPacket(dataPacket, addr, port);
+                    
+                    DatagramPacket incoming = new DatagramPacket(new byte[Packet.MTU], Packet.MTU);
+                    Packet response = socketManager.receivePacket(incoming);
+                    
+                    if (response != null && response.getMessageType() == Packet.ACK) {
+                        if (response.getSequenceNumber() == currentSeq) {
+                            ackReceived = true;
+                            currentSeq++;
+                            break;
+                        }
+                    }
+                }
+                if (!ackReceived) {
+                    System.out.println("Client disconnected during download.");
+                    return;
+                }
+            }
+            
+            Packet finPacket = new Packet(Packet.FIN, currentSeq, null);
+            socketManager.sendPacket(finPacket, addr, port);
+            
+        } catch (IOException e) {
+            System.err.println("Error sending file: " + e.getMessage());
+        }
     }
 
     public static void main(String[] args) throws SocketException {
